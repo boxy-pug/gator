@@ -16,6 +16,10 @@ type Config struct {
 	CurrentUserName string `json:"current_user_name"`
 }
 
+type State struct {
+	Config *Config
+}
+
 func getGatorConfigPath() (string, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
