@@ -1,12 +1,15 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"os"
 
 	"github.com/boxy-pug/gator/internal/commands"
 	"github.com/boxy-pug/gator/internal/config"
+	"github.com/boxy-pug/gator/internal/database"
+	_ "github.com/lib/pq"
 )
 
 func main() {
@@ -15,14 +18,26 @@ func main() {
 		log.Fatalf("error getting config: %v", err)
 	}
 
+	//load in your database URL to the config struct
+	db, err := sql.Open("postgres", c.DbUrl)
+	if err != nil {
+		log.Fatalf("error loading in database")
+	}
+	defer db.Close()
+	dbQueries := database.New(db)
+
 	// Initialize state
 	appState := &config.State{
+		Db:     dbQueries,
 		Config: &c,
 	}
 
 	// Initialize commands and handlers
 	cmds := commands.NewCommands()
 	cmds.Register("login", commands.HandlerLogin)
+	cmds.Register("register", commands.HandlerRegister)
+	cmds.Register("reset", commands.HandlerReset)
+	cmds.Register("users", commands.HandlerUsers)
 
 	//If there are fewer than 2 arguments, print an error message to the terminal and exit. Why two? The first argument is automatically the program name, which we ignore, and we require a command name.
 	if len(os.Args) < 2 {

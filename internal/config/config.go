@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/boxy-pug/gator/internal/database"
 )
 
 const (
@@ -17,6 +19,7 @@ type Config struct {
 }
 
 type State struct {
+	Db     *database.Queries
 	Config *Config
 }
 

@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/boxy-pug/gator/internal/config"
@@ -14,12 +15,17 @@ func HandlerLogin(s *config.State, cmd Command) error {
 	}
 	userName := cmd.Args[0]
 
-	err := s.Config.SetUser(userName)
+	_, err := s.Db.GetUser(context.Background(), userName)
+	if err != nil {
+		return fmt.Errorf("user does not exist: %v", err)
+	}
+
+	err = s.Config.SetUser(userName)
 	if err != nil {
 		return fmt.Errorf("error setting username: %v", err)
 	}
 
-	fmt.Printf("User %s has been set/n", userName)
+	fmt.Printf("User %s has been set", userName)
 
 	return nil
 }

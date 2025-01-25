@@ -1,7 +1,9 @@
 package commands
 
 import (
+	"context"
 	"errors"
+	"fmt"
 
 	"github.com/boxy-pug/gator/internal/config"
 )
@@ -34,4 +36,33 @@ func (c *Commands) Run(s *config.State, cmd Command) error {
 		return errors.New("command not found")
 	}
 	return handler(s, cmd)
+}
+
+// HandlerReset deletes all users from the database.
+func HandlerReset(s *config.State, cmd Command) error {
+	// Execute the DeleteAllUsers query
+	err := s.Db.DeleteAllUsers(context.Background())
+	if err != nil {
+		return fmt.Errorf("error resetting database: %v", err)
+	}
+
+	fmt.Println("Database reset successfully.")
+	return nil
+}
+
+func HandlerUsers(s *config.State, cmd Command) error {
+	users, err := s.Db.GetUsers(context.Background())
+	if err != nil {
+		return fmt.Errorf("error fetching users")
+	}
+
+	for _, name := range users {
+		if name == s.Config.CurrentUserName {
+			fmt.Printf("* %v (current)\n", name)
+		} else {
+			fmt.Printf("* %v\n", name)
+		}
+	}
+	return nil
+
 }
