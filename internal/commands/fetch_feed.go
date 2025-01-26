@@ -2,11 +2,17 @@ package commands
 
 import (
 	"context"
+	"database/sql"
 	"encoding/xml"
 	"fmt"
 	"html"
 	"io"
+	"log"
 	"net/http"
+
+	"github.com/boxy-pug/gator/internal/config"
+	"github.com/boxy-pug/gator/internal/database"
+	"github.com/google/uuid"
 )
 
 type RSSFeed struct {
@@ -66,4 +72,51 @@ func FetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 
 	return &feed, nil
 
+}
+
+func HandlerAddFeed(s *config.State, cmd Command) error {
+	if len(cmd.Args) < 2 {
+		return fmt.Errorf("expecting two args, name and url")
+	}
+
+	feedName := cmd.Args[0]
+	feedUrl := cmd.Args[1]
+
+	currentUser := s.Config.CurrentUserName
+
+	user, err := s.Db.GetUser(context.Background(), currentUser)
+	if err != nil {
+		return fmt.Errorf("error retrieving current user: %v", err)
+	}
+
+	feedID := uuid.New()
+	feed, err := s.Db.CreateFeed(context.Background(), database.CreateFeedParams{
+		ID:     feedID,
+		UserID: uuid.NullUUID{UUID: user.ID, Valid: true},
+		Name:   feedName,
+		Url:    sql.NullString{String: feedUrl, Valid: true},
+	})
+	// Print the details of the new feed
+	fmt.Printf("Feed added successfully:\nID: %s\nName: %s\nURL: %s\n", feed.ID, feed.Name, feed.Url)
+	log.Printf("Feed added: ID=%s, Name=%s, URL=%s, UserID=%s\n", feed.ID, feed.Name, feed.Url, user.ID)
+
+	return nil
+
+}
+func HandlerFeeds(s *config.State, cmd Command) error {
+	feeds, err := s.Db.GetFeeds(context.Background())
+	if err != nil {
+		return fmt.Errorf("error fetching feeds: %w", err)
+	}
+
+	for _, feed := range feeds {
+		userName, err := s.Db.GetUserFromId(context.Background(), feed.UserID.UUID)
+		if err != nil {
+			return fmt.Errorf("error fetching username from uuid: %w", err)
+		}
+		fmt.Printf("%s\n", feed.Name)
+		fmt.Printf("%v\n", feed.Url.String)
+		fmt.Printf("%s\n", userName)
+	}
+	return nil
 }
