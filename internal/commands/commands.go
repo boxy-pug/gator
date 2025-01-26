@@ -66,3 +66,28 @@ func HandlerUsers(s *config.State, cmd Command) error {
 	return nil
 
 }
+
+// HandlerAgg fetches an RSS feed and prints it .
+func HandlerAgg(s *config.State, cmd Command) error {
+	feedURL := "https://www.wagslane.dev/index.xml"
+	ctx := context.Background()
+
+	// Fetch the RSS feed
+	feed, err := FetchFeed(ctx, feedURL)
+	if err != nil {
+		return fmt.Errorf("error fetching feed: %v", err)
+	}
+
+	// Print the feed details
+	fmt.Printf("Feed Title: %s\n", feed.Channel.Title)
+	fmt.Printf("Feed Link: %s\n", feed.Channel.Link)
+	fmt.Printf("Feed Description: %s\n", feed.Channel.Description)
+	for _, item := range feed.Channel.Item {
+		fmt.Printf("Item Title: %s\n", item.Title)
+		fmt.Printf("Item Link: %s\n", item.Link)
+		fmt.Printf("Item Description: %s\n", item.Description)
+		fmt.Printf("Item PubDate: %s\n", item.PubDate)
+	}
+
+	return nil
+}
