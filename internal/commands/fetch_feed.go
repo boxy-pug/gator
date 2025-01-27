@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/boxy-pug/gator/internal/config"
 	"github.com/boxy-pug/gator/internal/database"
@@ -96,6 +97,17 @@ func HandlerAddFeed(s *config.State, cmd Command) error {
 		Name:   feedName,
 		Url:    sql.NullString{String: feedUrl, Valid: true},
 	})
+	if err != nil {
+		fmt.Errorf("error creating feed: %w", err)
+	}
+
+	// Call HandlerFollow to follow the newly added feed
+	followCmd := Command{Name: "follow", Args: []string{feedUrl}}
+	err = HandlerFollow(s, followCmd)
+	if err != nil {
+		return fmt.Errorf("error following feed: %w", err)
+	}
+
 	// Print the details of the new feed
 	fmt.Printf("Feed added successfully:\nID: %s\nName: %s\nURL: %s\n", feed.ID, feed.Name, feed.Url)
 	log.Printf("Feed added: ID=%s, Name=%s, URL=%s, UserID=%s\n", feed.ID, feed.Name, feed.Url, user.ID)
@@ -119,4 +131,65 @@ func HandlerFeeds(s *config.State, cmd Command) error {
 		fmt.Printf("%s\n", userName)
 	}
 	return nil
+}
+
+func HandlerFollow(s *config.State, cmd Command) error {
+	if len(cmd.Args) < 1 {
+		return fmt.Errorf("expecting url argument")
+	}
+
+	currentUser := s.Config.CurrentUserName
+	feedUrl := cmd.Args[0]
+
+	user, err := s.Db.GetUser(context.Background(), currentUser)
+	if err != nil {
+		return fmt.Errorf("error getting user from db; %w", err)
+	}
+
+	feedId, err := s.Db.GetFeedByUrl(context.Background(), sql.NullString{String: feedUrl, Valid: true})
+	if err != nil {
+		return fmt.Errorf("error getting feed by url: %w", err)
+	}
+
+	feedFollowId := uuid.New()
+	feedFollow, err := s.Db.CreateFeedFollow(context.Background(), database.CreateFeedFollowParams{
+		ID:        feedFollowId,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		UserID:    uuid.NullUUID{UUID: user.ID, Valid: true},
+		FeedID:    uuid.NullUUID{UUID: feedId, Valid: true},
+	})
+	if err != nil {
+		fmt.Errorf("error creating feed follow: %w", err)
+	}
+
+	fmt.Printf("Successfully followed feed:\nUser: %s\nFeed: %s\n", feedFollow.UserName, feedFollow.FeedName)
+
+	return nil
+}
+
+//Add a follow command.
+// It takes a single url argument and creates a new feed follow record for the current user.
+//It should print the name of the feed and the current user once the record is created
+//(which the query we just made should support). You'll need a query to look up feeds by URL.
+
+func HandlerFollowing(s *config.State, cmd Command) error {
+	currentUser := s.Config.CurrentUserName
+
+	user, err := s.Db.GetUser(context.Background(), currentUser)
+	if err != nil {
+		return fmt.Errorf("error retrieving user: %w", err)
+	}
+
+	feeds, err := s.Db.GetFeedFollowsForUser(context.Background(), uuid.NullUUID{UUID: user.ID, Valid: true})
+	if err != nil {
+		fmt.Errorf("error retreiving user feeds: %w", err)
+	}
+
+	for _, feed := range feeds {
+		fmt.Printf("%s\n", feed.FeedName)
+	}
+
+	return nil
+
 }

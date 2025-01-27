@@ -41,6 +41,8 @@ func main() {
 	cmds.Register("agg", commands.HandlerAgg)
 	cmds.Register("addfeed", commands.HandlerAddFeed)
 	cmds.Register("feeds", commands.HandlerFeeds)
+	cmds.Register("follow", commands.HandlerFollow)
+	cmds.Register("following", commands.HandlerFollowing)
 
 	//If there are fewer than 2 arguments, print an error message to the terminal and exit. Why two? The first argument is automatically the program name, which we ignore, and we require a command name.
 	if len(os.Args) < 2 {
