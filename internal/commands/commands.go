@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/boxy-pug/gator/internal/config"
+	"github.com/boxy-pug/gator/internal/database"
 )
 
 type Command struct {
@@ -90,4 +91,14 @@ func HandlerAgg(s *config.State, cmd Command) error {
 	}
 
 	return nil
+}
+
+func MiddleWareLoggedIn(handler func(s *config.State, cmd Command, user database.User) error) func(*config.State, Command) error {
+	return func(s *config.State, cmd Command) error {
+		user, err := s.Db.GetUser(context.Background(), s.Config.CurrentUserName)
+		if err != nil {
+			return fmt.Errorf("user not logged in or does not exist: %w", err)
+		}
+		return handler(s, cmd, user)
+	}
 }

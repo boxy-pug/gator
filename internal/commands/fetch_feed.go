@@ -75,20 +75,13 @@ func FetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 
 }
 
-func HandlerAddFeed(s *config.State, cmd Command) error {
+func HandlerAddFeed(s *config.State, cmd Command, user database.User) error {
 	if len(cmd.Args) < 2 {
 		return fmt.Errorf("expecting two args, name and url")
 	}
 
 	feedName := cmd.Args[0]
 	feedUrl := cmd.Args[1]
-
-	currentUser := s.Config.CurrentUserName
-
-	user, err := s.Db.GetUser(context.Background(), currentUser)
-	if err != nil {
-		return fmt.Errorf("error retrieving current user: %v", err)
-	}
 
 	feedID := uuid.New()
 	feed, err := s.Db.CreateFeed(context.Background(), database.CreateFeedParams{
@@ -103,7 +96,7 @@ func HandlerAddFeed(s *config.State, cmd Command) error {
 
 	// Call HandlerFollow to follow the newly added feed
 	followCmd := Command{Name: "follow", Args: []string{feedUrl}}
-	err = HandlerFollow(s, followCmd)
+	err = HandlerFollow(s, followCmd, user)
 	if err != nil {
 		return fmt.Errorf("error following feed: %w", err)
 	}
@@ -133,18 +126,12 @@ func HandlerFeeds(s *config.State, cmd Command) error {
 	return nil
 }
 
-func HandlerFollow(s *config.State, cmd Command) error {
+func HandlerFollow(s *config.State, cmd Command, user database.User) error {
 	if len(cmd.Args) < 1 {
 		return fmt.Errorf("expecting url argument")
 	}
 
-	currentUser := s.Config.CurrentUserName
 	feedUrl := cmd.Args[0]
-
-	user, err := s.Db.GetUser(context.Background(), currentUser)
-	if err != nil {
-		return fmt.Errorf("error getting user from db; %w", err)
-	}
 
 	feedId, err := s.Db.GetFeedByUrl(context.Background(), sql.NullString{String: feedUrl, Valid: true})
 	if err != nil {
@@ -173,13 +160,7 @@ func HandlerFollow(s *config.State, cmd Command) error {
 //It should print the name of the feed and the current user once the record is created
 //(which the query we just made should support). You'll need a query to look up feeds by URL.
 
-func HandlerFollowing(s *config.State, cmd Command) error {
-	currentUser := s.Config.CurrentUserName
-
-	user, err := s.Db.GetUser(context.Background(), currentUser)
-	if err != nil {
-		return fmt.Errorf("error retrieving user: %w", err)
-	}
+func HandlerFollowing(s *config.State, cmd Command, user database.User) error {
 
 	feeds, err := s.Db.GetFeedFollowsForUser(context.Background(), uuid.NullUUID{UUID: user.ID, Valid: true})
 	if err != nil {

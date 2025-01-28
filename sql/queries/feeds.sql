@@ -49,3 +49,10 @@ Add a GetFeedFollowsForUser query.
 It should return all the feed follows for a given user, 
 and include the names of the feeds and user in the result.
 */
+
+/*
+-- name DeleteFollowFeed :one
+DELETE FROM feed_follows
+USING feeds
+WHERE 
+*/
