@@ -174,3 +174,21 @@ func HandlerFollowing(s *config.State, cmd Command, user database.User) error {
 	return nil
 
 }
+
+func HandlerDeleteFeed(s *config.State, cmd Command, user database.User) error {
+	if len(cmd.Args) < 1 {
+		fmt.Errorf("please provide url for unfollowing")
+	}
+	url := cmd.Args[0]
+
+	err := s.Db.DeleteFollowFeed(context.Background(), database.DeleteFollowFeedParams{
+		Url:    sql.NullString{String: url, Valid: true},
+		UserID: uuid.NullUUID{UUID: user.ID, Valid: true},
+	})
+	if err != nil {
+		return fmt.Errorf("could not delete follow feed: %w", err)
+	}
+	fmt.Printf("Successfully deleted feed %s from follow list\n", url)
+
+	return nil
+}

@@ -44,15 +44,9 @@ INNER JOIN feeds ON feeds.id = feed_follows.feed_id
 INNER JOIN users ON users.id = feed_follows.user_id
 WHERE feed_follows.user_id = $1;
 
-/*
-Add a GetFeedFollowsForUser query. 
-It should return all the feed follows for a given user, 
-and include the names of the feeds and user in the result.
-*/
-
-/*
--- name DeleteFollowFeed :one
+-- name: DeleteFollowFeed :exec
 DELETE FROM feed_follows
 USING feeds
-WHERE 
-*/
+WHERE feed_follows.feed_id = feeds.id
+AND feeds.url = $1
+AND feed_follows.user_id = $2; 
