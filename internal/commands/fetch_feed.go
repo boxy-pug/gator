@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/boxy-pug/gator/internal/config"
@@ -215,7 +216,51 @@ func ScrapeFeeds(s *config.State) error {
 	}
 
 	for _, item := range fetchedFeed.Channel.Item {
-		fmt.Printf("Title: %s\n", item.Title)
+		publishedAt, err := time.Parse(time.RFC1123Z, item.PubDate)
+		if err != nil {
+			log.Printf("error fetching published date for %s, using current time instead", item.Title)
+			publishedAt = time.Now()
+		}
+		postID := uuid.New()
+		post := database.CreatePostParams{
+			ID:          postID,
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+			Title:       item.Title,
+			Url:         item.Link,
+			Description: sql.NullString{String: item.Description, Valid: item.Description != ""},
+			PublishedAt: sql.NullTime{Time: publishedAt, Valid: true},
+			FeedID:      uuid.NullUUID{UUID: nextFeed.ID, Valid: true},
+		}
+
+		_, err = s.Db.CreatePost(context.Background(), post)
+		if err != nil {
+			log.Printf("error saving post %v", item.Title)
+		}
 	}
+	return nil
+}
+
+func HandlerBrowse(s *config.State, cmd Command, user database.User) error {
+	limit := 2
+	if len(cmd.Args) > 0 {
+		l, err := strconv.Atoi(cmd.Args[0])
+		if err == nil {
+			limit = l
+		}
+
+	}
+	posts, err := s.Db.GetPostsForUser(context.Background(), database.GetPostsForUserParams{
+		UserID: uuid.NullUUID{UUID: user.ID, Valid: true},
+		Limit:  int32(limit),
+	})
+	if err != nil {
+		return fmt.Errorf("error retrieving posts for user: %w", err)
+	}
+
+	for _, post := range posts {
+		fmt.Printf("Post Title: %s, URL: %s, Published At: %v\n", post.Title, post.Url, post.PublishedAt)
+	}
+
 	return nil
 }
