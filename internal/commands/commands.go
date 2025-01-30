@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/boxy-pug/gator/internal/config"
 	"github.com/boxy-pug/gator/internal/database"
@@ -70,27 +71,23 @@ func HandlerUsers(s *config.State, cmd Command) error {
 
 // HandlerAgg fetches an RSS feed and prints it .
 func HandlerAgg(s *config.State, cmd Command) error {
-	feedURL := "https://www.wagslane.dev/index.xml"
-	ctx := context.Background()
+	if len(cmd.Args) < 1 {
+		return fmt.Errorf("expected time between req argument")
+	}
 
-	// Fetch the RSS feed
-	feed, err := FetchFeed(ctx, feedURL)
+	timeBetweenRequests, err := time.ParseDuration(cmd.Args[0])
 	if err != nil {
-		return fmt.Errorf("error fetching feed: %v", err)
+		return fmt.Errorf("could not parse duration: %w", err)
 	}
 
-	// Print the feed details
-	fmt.Printf("Feed Title: %s\n", feed.Channel.Title)
-	fmt.Printf("Feed Link: %s\n", feed.Channel.Link)
-	fmt.Printf("Feed Description: %s\n", feed.Channel.Description)
-	for _, item := range feed.Channel.Item {
-		fmt.Printf("Item Title: %s\n", item.Title)
-		fmt.Printf("Item Link: %s\n", item.Link)
-		fmt.Printf("Item Description: %s\n", item.Description)
-		fmt.Printf("Item PubDate: %s\n", item.PubDate)
-	}
+	fmt.Printf("Collecting feeds every %s", timeBetweenRequests)
 
-	return nil
+	ticker := time.NewTicker(timeBetweenRequests)
+	defer ticker.Stop()
+
+	for ; ; <-ticker.C {
+		ScrapeFeeds(s)
+	}
 }
 
 func MiddleWareLoggedIn(handler func(s *config.State, cmd Command, user database.User) error) func(*config.State, Command) error {

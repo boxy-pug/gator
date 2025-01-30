@@ -192,3 +192,30 @@ func HandlerDeleteFeed(s *config.State, cmd Command, user database.User) error {
 
 	return nil
 }
+
+/*
+Write an aggregation function, I called mine scrapeFeeds. It should:
+
+    Get the next feed to fetch from the DB.
+    Mark it as fetched.
+    Fetch the feed using the URL (we already wrote this function)
+    Iterate over the items in the feed and print their titles to the console.
+*/
+
+func ScrapeFeeds(s *config.State) error {
+	nextFeed, err := s.Db.GetNextFeedToFetch(context.Background())
+	if err != nil {
+		return fmt.Errorf("could not fetch next feed; %w", err)
+	}
+	nextFeed.LastFetchedAt = sql.NullTime{Time: time.Now(), Valid: true}
+
+	fetchedFeed, err := FetchFeed(context.Background(), nextFeed.Url.String)
+	if err != nil {
+		return fmt.Errorf("could not fetch feed content:%w", err)
+	}
+
+	for _, item := range fetchedFeed.Channel.Item {
+		fmt.Printf("Title: %s\n", item.Title)
+	}
+	return nil
+}

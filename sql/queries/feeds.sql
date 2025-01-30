@@ -49,4 +49,19 @@ DELETE FROM feed_follows
 USING feeds
 WHERE feed_follows.feed_id = feeds.id
 AND feeds.url = $1
-AND feed_follows.user_id = $2; 
+AND feed_follows.user_id = $2;
+
+-- Add a MarkFeedFetched SQL query. 
+-- It should simply set the last_fetched_at and updated_at columns 
+-- to the current time for a given feed (probably by ID is simplest).
+
+-- name: MarkFeedFetched :exec
+UPDATE feeds
+SET last_fetched_at = NOW(), updated_at = NOW()
+WHERE id = $1;
+
+-- name: GetNextFeedToFetch :one
+SELECT id, created_at, updated_at, name, url, user_id, last_fetched_at
+FROM feeds
+ORDER BY last_fetched_at NULLS FIRST
+LIMIT 1;
