@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/boxy-pug/gator/internal/config"
@@ -208,7 +209,12 @@ func ScrapeFeeds(s *config.State) error {
 	if err != nil {
 		return fmt.Errorf("could not fetch next feed; %w", err)
 	}
-	nextFeed.LastFetchedAt = sql.NullTime{Time: time.Now(), Valid: true}
+	// Mark the feed as fetched
+	err = s.Db.MarkFeedFetched(context.Background(), nextFeed.ID)
+	if err != nil {
+		return fmt.Errorf("could not mark feed as fetched: %w", err)
+	}
+	//nextFeed.LastFetchedAt = sql.NullTime{Time: time.Now(), Valid: true}
 
 	fetchedFeed, err := FetchFeed(context.Background(), nextFeed.Url.String)
 	if err != nil {
@@ -235,8 +241,17 @@ func ScrapeFeeds(s *config.State) error {
 
 		_, err = s.Db.CreatePost(context.Background(), post)
 		if err != nil {
-			log.Printf("error saving post %v", item.Title)
+			if strings.Contains(err.Error(), "unique constraint") {
+				// This indicates a unique constraint violation, which we can safely ignore
+				log.Printf("Post with URL %s already exists. Skipping.", item.Link)
+				continue
+			}
+			log.Printf("Error saving post %s: %v", item.Title, err)
 		}
+		//_, err = s.Db.CreatePost(context.Background(), post)
+		//if err != nil {
+		//	log.Printf("error saving post %v", item.Title)
+		//}
 	}
 	return nil
 }
@@ -258,8 +273,13 @@ func HandlerBrowse(s *config.State, cmd Command, user database.User) error {
 		return fmt.Errorf("error retrieving posts for user: %w", err)
 	}
 
+	if len(posts) == 0 {
+		fmt.Println("No posts found for the user.")
+		return nil
+	}
+
 	for _, post := range posts {
-		fmt.Printf("Post Title: %s, URL: %s, Published At: %v\n", post.Title, post.Url, post.PublishedAt)
+		fmt.Printf("Post Title: %s\n, URL: %s\n, Published At: %v\n\n", post.Title, post.Url, post.PublishedAt)
 	}
 
 	return nil
